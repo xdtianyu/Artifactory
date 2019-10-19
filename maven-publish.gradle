@@ -1,0 +1,77 @@
+apply plugin: 'com.jfrog.artifactory'
+apply plugin: 'maven-publish'
+
+artifactoryPublish.dependsOn('assembleRelease', 'generatePomFileForAarPublication')
+
+publishing {
+    publications {
+        aar(MavenPublication) {
+            groupId "${pom_group}.${project.getName()}"
+            artifactId "${project.getName()}"
+            version "${pom_version}"
+            artifact("$buildDir/outputs/aar/${project.getName()}-release.aar")
+
+            pom.withXml {
+                asNode().children().last() + {
+                    resolveStrategy = DELEGATE_FIRST
+                    name "${project.getName()}"
+                    description defaultValue({ pom_description }, "${project.getName()}")
+                    url defaultValue({ pom_project_url }, "")
+                    scm {
+                        url defaultValue({ pom_project_url }, "")
+                    }
+                    licenses {
+                        license {
+                            name defaultValue({ pom_license },
+                                    'The Apache Software License, Version 2.0')
+                            url defaultValue({ pom_license_url },
+                                    'http://www.apache.org/license/LICENSE-2.0.txt')
+                            distribution defaultValue({ pom_license_distribution }, 'repo')
+                        }
+                    }
+                    developers {
+                        developer {
+                            id defaultValue({ pom_developer_id }, "")
+                            name defaultValue({ pom_developer_name }, "")
+                            email defaultValue({ pom_developer_email }, "")
+                        }
+                    }
+                }
+                def dependenciesNode = asNode().appendNode('dependencies')
+                configurations.implementation.allDependencies.each { dependency ->
+                    if (dependency.group == null) return
+                    def dependencyNode = dependenciesNode.appendNode('dependency')
+                    dependencyNode.appendNode('groupId', dependency.group)
+                    dependencyNode.appendNode('artifactId', dependency.name)
+                    dependencyNode.appendNode('version', dependency.version)
+                }
+            }
+        }
+    }
+}
+
+artifactory {
+    contextUrl = "${artifactory_contextUrl}"
+    publish {
+        repository {
+            repoKey = 'gradle-release-local'
+            username = "${artifactory_user}"
+            password = "${artifactory_password}"
+            maven = true
+        }
+        defaults {
+            publications('mavenJava', 'aar')
+        }
+        publishBuildInfo = true
+        publishArtifacts = true
+        publishPom = true
+    }
+}
+
+static def defaultValue(varNameExpr, defaultValue) {
+    try {
+        varNameExpr()
+    } catch (ignored) {
+        defaultValue
+    }
+}

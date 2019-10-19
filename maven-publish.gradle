@@ -51,12 +51,12 @@ publishing {
 }
 
 artifactory {
-    contextUrl = "${artifactory_contextUrl}"
+    contextUrl = defaultValue({ artifactory_contextUrl }, "")
     publish {
         repository {
             repoKey = 'gradle-release-local'
-            username = "${artifactory_user}"
-            password = "${artifactory_password}"
+            username = defaultValue({ artifactory_user }, "")
+            password = defaultValue({ artifactory_password }, "")
             maven = true
         }
         defaults {

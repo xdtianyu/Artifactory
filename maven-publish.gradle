@@ -1,15 +1,46 @@
 apply plugin: 'com.jfrog.artifactory'
 apply plugin: 'maven-publish'
 
-artifactoryPublish.dependsOn('assembleRelease', 'generatePomFileForAarPublication')
+artifactoryPublish.dependsOn('assembleRelease', 'generatePomFileForArtifactsPublication')
+
+task sourceJar(type: Jar) {
+    from android.sourceSets.main.java.srcDirs
+    classifier "sources"
+}
+
+task propertyJar(type: Jar) {
+    from('src') {
+        include '**'
+    }
+    classifier "sources-all"
+}
 
 publishing {
     publications {
-        aar(MavenPublication) {
+        artifacts(MavenPublication) {
             groupId "${pom_group}.${project.getName()}"
             artifactId "${project.getName()}"
             version "${pom_version}"
-            artifact("$buildDir/outputs/aar/${project.getName()}-release.aar")
+
+            def publishSource = defaultValue({ publish_source }, false)
+
+            def jar = "$buildDir/libs/${project.getName()}-${version}.jar"
+            def aar = "$buildDir/outputs/aar/${project.getName()}-release.aar"
+
+            if (file(jar).exists()) {
+                artifact(jar)
+            }
+
+            if (file(aar).exists()) {
+                artifact(aar)
+            }
+
+            System.out.println("publishSource: $publishSource")
+
+            if (publishSource) {
+                artifact(sourceJar)
+                artifact(propertyJar)
+            }
 
             pom.withXml {
                 asNode().children().last() + {
@@ -60,7 +91,7 @@ artifactory {
             maven = true
         }
         defaults {
-            publications('mavenJava', 'aar')
+            publications('mavenJava', 'artifacts')
         }
         publishBuildInfo = true
         publishArtifacts = true
